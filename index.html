@@ -408,7 +408,13 @@ function renderResultados(app) {
   document.querySelectorAll("[data-del]").forEach(btn => {
     btn.onclick = async () => {
       const n = btn.getAttribute("data-del");
-      if (confirm(`¿Borrar voto de ${n}?`)) {
+      const pwd = prompt(`Contraseña para borrar el voto de ${n}:`);
+      if (pwd === null) return;
+      if (pwd !== "WOP2026") {
+        alert("Contraseña incorrecta");
+        return;
+      }
+      if (confirm(`¿Seguro que quieres borrar el voto de ${n}?`)) {
         await apiDelete(n);
         await refresh();
       }
