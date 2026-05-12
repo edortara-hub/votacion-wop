@@ -169,7 +169,7 @@ const franjaClass = {
   "Atardecer":"pill-twilight", "Anochecer":"pill-twilight", "Amanecer":"pill-twilight"
 };
 
-let state = { view: "home", votos: {} };
+let state = { view: "home", votos: {}, expandedEtapa: null };
 
 async function apiGet() {
   try {
@@ -355,16 +355,39 @@ function renderVotar(app) {
 function renderResultados(app) {
   const votantes = Object.entries(state.votos);
   const puntos = {};
-  ETAPAS.forEach(e => puntos[e.n] = {pts: 0, p1: 0, p2: 0, p3: 0});
-  votantes.forEach(([, v]) => {
-    puntos[v.p1].pts += 3; puntos[v.p1].p1++;
-    puntos[v.p2].pts += 2; puntos[v.p2].p2++;
-    puntos[v.p3].pts += 1; puntos[v.p3].p3++;
+  ETAPAS.forEach(e => puntos[e.n] = {pts: 0, p1: [], p2: [], p3: []});
+  votantes.forEach(([nombre, v]) => {
+    puntos[v.p1].pts += 3; puntos[v.p1].p1.push(nombre);
+    puntos[v.p2].pts += 2; puntos[v.p2].p2.push(nombre);
+    puntos[v.p3].pts += 1; puntos[v.p3].p3.push(nombre);
   });
   const ranking = ETAPAS.map(e => ({...e, ...puntos[e.n]})).sort((a, b) => b.pts - a.pts);
   const maxPts = Math.max(...ranking.map(r => r.pts), 1);
 
+  const tab = state.tab || "ranking";
+  const tabBtn = (id, label) => `
+    <button class="tab-btn ${tab === id ? 'tab-active' : ''}" data-tab="${id}">${label}</button>
+  `;
+
   app.innerHTML = `
+    <style>
+      .tabs { display: flex; gap: 4px; margin-bottom: 12px; background: #ececeb; padding: 4px; border-radius: 8px; }
+      .tab-btn { flex: 1; padding: 8px; border: none; background: transparent; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; color: #666; }
+      .tab-active { background: white; color: #1c1c1c; }
+      .etapa-detail-card { background: #f9f9f8; border-radius: 6px; padding: 8px 12px; margin-top: 4px; font-size: 12px; }
+      .etapa-detail-card div { padding: 2px 0; }
+      .person-vote { padding: 12px 0; border-bottom: 1px solid #ececeb; }
+      .person-vote:last-child { border-bottom: none; }
+      .vote-line { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; }
+      .prio-badge { display: inline-block; width: 18px; height: 18px; border-radius: 50%; text-align: center; font-size: 11px; font-weight: 600; line-height: 18px; }
+      .p1 { background: #185fa5; color: white; }
+      .p2 { background: #5a8bb8; color: white; }
+      .p3 { background: #a8c1d6; color: white; }
+      .clickable { cursor: pointer; transition: background 0.1s; }
+      .clickable:hover { background: #f5f5f4; }
+      .preferences-mini { font-size: 11px; color: #999; margin-top: 4px; }
+    </style>
+
     <div class="top-bar">
       <button class="back-btn" id="btn-back">← Volver</button>
       <h2>Resultados (${votantes.length}/12)</h2>
@@ -374,39 +397,118 @@ function renderResultados(app) {
     ${votantes.length === 0 ? `
       <div class="card"><div class="empty">Aún no ha votado nadie.</div></div>
     ` : `
-      <div class="card">
-        <div style="font-size:13px; color:#666; margin-bottom:6px;">Han votado:</div>
-        <div>
-          ${votantes.map(([n]) => `
-            <span class="voter-pill">${n}<button class="voter-del" data-del="${n}" aria-label="Borrar ${n}">×</button></span>
-          `).join("")}
-        </div>
+      <div class="tabs">
+        ${tabBtn("ranking", "Ranking")}
+        ${tabBtn("etapas", "Por etapa")}
+        ${tabBtn("personas", "Por persona")}
       </div>
 
-      <div class="card">
-        <div style="font-size:13px; color:#666; margin-bottom:10px;">Ranking por puntos:</div>
-        ${ranking.map((r, i) => `
-          <div class="ranking-row">
-            <span style="color:#999;">#${i+1}</span>
-            <strong>E${r.n}</strong>
-            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.ruta}</span>
-            <span class="pill pill-dif ${difClass[r.dif]}">${r.dif}</span>
-            <span class="pill ${franjaClass[r.franja]}">${r.franja}</span>
-            <div class="bar-wrap" style="display:flex; align-items:center; gap:6px;">
-              <div class="bar-bg"><div class="bar-fg" style="width:${(r.pts/maxPts)*100}%"></div></div>
-              <strong style="min-width:18px; text-align:right;">${r.pts}</strong>
+      ${tab === "ranking" ? `
+        <div class="card">
+          <div style="font-size:12px; color:#666; margin-bottom:10px;">Pulsa una etapa para ver quién la ha votado</div>
+          ${ranking.map((r, i) => `
+            <div class="ranking-row clickable" data-etapa="${r.n}">
+              <span style="color:#999;">#${i+1}</span>
+              <strong>E${r.n}</strong>
+              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.ruta}</span>
+              <span class="pill pill-dif ${difClass[r.dif]}">${r.dif}</span>
+              <span class="pill ${franjaClass[r.franja]}">${r.franja}</span>
+              <div class="bar-wrap" style="display:flex; align-items:center; gap:6px;">
+                <div class="bar-bg"><div class="bar-fg" style="width:${(r.pts/maxPts)*100}%"></div></div>
+                <strong style="min-width:18px; text-align:right;">${r.pts}</strong>
+              </div>
             </div>
-          </div>
-        `).join("")}
-      </div>
+            ${state.expandedEtapa === r.n ? `
+              <div class="etapa-detail-card">
+                ${r.p1.length ? `<div><span class="prio-badge p1">1</span> 1ª opción: <strong>${r.p1.join(", ")}</strong></div>` : ""}
+                ${r.p2.length ? `<div><span class="prio-badge p2">2</span> 2ª opción: <strong>${r.p2.join(", ")}</strong></div>` : ""}
+                ${r.p3.length ? `<div><span class="prio-badge p3">3</span> 3ª opción: <strong>${r.p3.join(", ")}</strong></div>` : ""}
+                ${r.pts === 0 ? `<div style="color:#999;">Nadie la ha votado</div>` : ""}
+              </div>
+            ` : ""}
+          `).join("")}
+        </div>
+      ` : ""}
+
+      ${tab === "etapas" ? `
+        <div class="card">
+          <div style="font-size:12px; color:#666; margin-bottom:10px;">Lista de todas las etapas y quién las ha votado</div>
+          ${ETAPAS.map(e => {
+            const p = puntos[e.n];
+            const total = p.p1.length + p.p2.length + p.p3.length;
+            return `
+              <div style="padding: 10px 0; border-bottom: 1px solid #ececeb;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                  <strong>E${e.n}</strong>
+                  <span style="flex:1; font-size: 13px;">${e.ruta}</span>
+                  <span class="pill ${difClass[e.dif]}">${e.dif}</span>
+                  <span class="pill ${franjaClass[e.franja]}">${e.franja}</span>
+                  <strong style="min-width:30px; text-align:right;">${p.pts} pts</strong>
+                </div>
+                ${total === 0 ? `
+                  <div style="font-size: 12px; color: #c44; padding-left: 8px;">⚠️ Nadie la ha votado</div>
+                ` : `
+                  <div style="padding-left: 8px;">
+                    ${p.p1.length ? `<div class="vote-line"><span class="prio-badge p1">1</span> ${p.p1.join(", ")}</div>` : ""}
+                    ${p.p2.length ? `<div class="vote-line"><span class="prio-badge p2">2</span> ${p.p2.join(", ")}</div>` : ""}
+                    ${p.p3.length ? `<div class="vote-line"><span class="prio-badge p3">3</span> ${p.p3.join(", ")}</div>` : ""}
+                  </div>
+                `}
+              </div>
+            `;
+          }).join("")}
+        </div>
+      ` : ""}
+
+      ${tab === "personas" ? `
+        <div class="card">
+          <div style="font-size:12px; color:#666; margin-bottom:10px;">Voto detallado de cada persona</div>
+          ${votantes.map(([nombre, v]) => {
+            const e1 = ETAPAS.find(e => e.n === v.p1);
+            const e2 = ETAPAS.find(e => e.n === v.p2);
+            const e3 = ETAPAS.find(e => e.n === v.p3);
+            const dobleTxt = {si: "✅ acepta 2 etapas", cortas: "⚠️ 2 solo si cortas", no: "❌ solo 1 etapa"}[v.doble] || "";
+            const nocheTxt = {"da-igual": "🌙 noche OK", "prefiero-dia": "☀️ prefiere día", "solo-dia": "❌ solo día"}[v.noche] || "";
+            return `
+              <div class="person-vote">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                  <strong style="font-size: 14px;">${nombre}</strong>
+                  <button class="voter-del" data-del="${nombre}" aria-label="Borrar ${nombre}" style="color:#c44;">🗑️</button>
+                </div>
+                <div class="vote-line"><span class="prio-badge p1">1</span> E${e1.n} - ${e1.ruta}</div>
+                <div class="vote-line"><span class="prio-badge p2">2</span> E${e2.n} - ${e2.ruta}</div>
+                <div class="vote-line"><span class="prio-badge p3">3</span> E${e3.n} - ${e3.ruta}</div>
+                <div class="preferences-mini">${dobleTxt} · ${nocheTxt}</div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      ` : ""}
     `}
   `;
 
-  document.getElementById("btn-back").onclick = () => { state.view = "home"; render(); };
+  document.getElementById("btn-back").onclick = () => { state.view = "home"; state.expandedEtapa = null; render(); };
   document.getElementById("btn-refresh").onclick = refresh;
 
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.onclick = () => {
+      state.tab = btn.getAttribute("data-tab");
+      state.expandedEtapa = null;
+      render();
+    };
+  });
+
+  document.querySelectorAll("[data-etapa]").forEach(row => {
+    row.onclick = () => {
+      const n = +row.getAttribute("data-etapa");
+      state.expandedEtapa = state.expandedEtapa === n ? null : n;
+      render();
+    };
+  });
+
   document.querySelectorAll("[data-del]").forEach(btn => {
-    btn.onclick = async () => {
+    btn.onclick = async (ev) => {
+      ev.stopPropagation();
       const n = btn.getAttribute("data-del");
       const pwd = prompt(`Contraseña para borrar el voto de ${n}:`);
       if (pwd === null) return;
