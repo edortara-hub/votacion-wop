@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Votación WOP Challenge</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 16px;
+    background: #f5f5f4;
+    color: #1c1c1c;
+    line-height: 1.5;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 22px; margin: 8px 0; text-align: center; }
+  h2 { font-size: 18px; font-weight: 500; margin: 0; }
+  .subtitle { color: #666; font-size: 13px; text-align: center; margin-bottom: 24px; }
+  .card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 1px solid #e5e5e4;
+  }
+  .info-box {
+    background: #eef2f7;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 14px;
+  }
+  .info-box ul { margin: 6px 0 0; padding-left: 20px; color: #444; }
+  .btn {
+    width: 100%;
+    padding: 14px;
+    font-size: 15px;
+    font-weight: 500;
+    border: 1px solid #d4d4d3;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn:hover { background: #f5f5f4; }
+  .btn-primary { background: #185fa5; color: white; border-color: #185fa5; }
+  .btn-primary:hover { background: #0c447c; }
+  .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  label {
+    display: block;
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  input, select {
+    width: 100%;
+    padding: 10px;
+    font-size: 15px;
+    border: 1px solid #d4d4d3;
+    border-radius: 8px;
+    background: white;
+    font-family: inherit;
+  }
+  .field { margin-bottom: 14px; }
+  .error { background: #fee; color: #a33; padding: 10px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: none; }
+  .success { background: #eef9e7; color: #2c5b1a; padding: 12px; border-radius: 8px; font-size: 14px; margin-bottom: 12px; }
+  .top-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .back-btn { padding: 6px 12px; font-size: 13px; background: white; border: 1px solid #d4d4d3; border-radius: 6px; cursor: pointer; }
+  .etapa-row {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #ececeb;
+    font-size: 13px;
+  }
+  .pill {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-left: 4px;
+  }
+  .pill-easy { background: #EAF3DE; color: #27500A; }
+  .pill-hard { background: #FAEEDA; color: #854F0B; }
+  .pill-vhard { background: #FCEBEB; color: #791F1F; }
+  .pill-day { background: #FAEEDA; color: #854F0B; }
+  .pill-night { background: #EEEDFE; color: #3C3489; }
+  .pill-twilight { background: #FAECE7; color: #712B13; }
+  .etapa-detail {
+    background: #f9f9f8;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    max-height: 280px;
+    overflow-y: auto;
+    font-size: 13px;
+  }
+  .ranking-row {
+    display: grid;
+    grid-template-columns: 28px 40px 1fr auto auto 90px;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #ececeb;
+    font-size: 13px;
+  }
+  .bar-bg { background: #ececeb; height: 6px; border-radius: 3px; overflow: hidden; flex: 1; }
+  .bar-fg { background: #185fa5; height: 100%; }
+  .voter-pill {
+    font-size: 12px;
+    padding: 4px 10px;
+    background: #f0f0ee;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0 4px 4px 0;
+  }
+  .voter-del {
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: #999;
+    padding: 0 0 0 4px;
+    font-size: 14px;
+  }
+  .loading { text-align: center; padding: 40px; color: #999; }
+  .empty { text-align: center; padding: 40px; color: #999; font-size: 14px; }
+  @media (max-width: 480px) {
+    .ranking-row { grid-template-columns: 22px 30px 1fr auto; }
+    .ranking-row .pill-dif, .ranking-row .bar-wrap { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const ETAPAS = [
+  {n:1, ruta:"Bilbao – Arrigorriaga", dif:"Fácil", dist:"10,02 km", dp:175, dn:128, ini:"sáb 16:00", fin:"sáb 17:00", franja:"Día"},
+  {n:2, ruta:"Arrigorriaga – Ermitabarri", dif:"Muy Difícil", dist:"11,54 km", dp:473, dn:380, ini:"sáb 17:00", fin:"sáb 18:45", franja:"Día"},
+  {n:3, ruta:"Ermitabarri – Dima", dif:"Difícil", dist:"9,05 km", dp:146, dn:187, ini:"sáb 18:45", fin:"sáb 19:40", franja:"Atardecer"},
+  {n:4, ruta:"Dima – Urkiola", dif:"Muy Difícil", dist:"14,46 km", dp:790, dn:172, ini:"sáb 19:40", fin:"sáb 22:15", franja:"Anochecer"},
+  {n:5, ruta:"Urkiola – Matiena", dif:"Fácil", dist:"15,56 km", dp:173, dn:784, ini:"sáb 22:15", fin:"sáb 23:25", franja:"Noche"},
+  {n:6, ruta:"Matiena – Monte Oiz", dif:"Difícil", dist:"13,05 km", dp:672, dn:7, ini:"sáb 23:25", fin:"dom 01:30", franja:"Noche"},
+  {n:7, ruta:"Monte Oiz – Aulesti", dif:"Fácil", dist:"13,76 km", dp:60, dn:756, ini:"dom 01:30", fin:"dom 02:25", franja:"Noche"},
+  {n:8, ruta:"Aulesti – Kortezubi", dif:"Fácil", dist:"13,24 km", dp:337, dn:428, ini:"dom 02:25", fin:"dom 03:45", franja:"Noche"},
+  {n:9, ruta:"Kortezubi – Murueta", dif:"Fácil", dist:"12,05 km", dp:82, dn:59, ini:"dom 03:45", fin:"dom 04:45", franja:"Noche"},
+  {n:10, ruta:"Murueta – Bermeo", dif:"Fácil", dist:"11,72 km", dp:178, dn:202, ini:"dom 04:45", fin:"dom 05:50", franja:"Noche"},
+  {n:11, ruta:"Bermeo – Bakio", dif:"Difícil", dist:"13,54 km", dp:316, dn:315, ini:"dom 05:50", fin:"dom 07:25", franja:"Amanecer"},
+  {n:12, ruta:"Bakio – Armintza", dif:"Difícil", dist:"13,24 km", dp:412, dn:410, ini:"dom 07:25", fin:"dom 09:00", franja:"Día"},
+  {n:13, ruta:"Armintza – Barrika", dif:"Difícil", dist:"10,97 km", dp:348, dn:285, ini:"dom 09:00", fin:"dom 10:25", franja:"Día"},
+  {n:14, ruta:"Barrika – Puerto Viejo", dif:"Fácil", dist:"12,31 km", dp:203, dn:269, ini:"dom 10:25", fin:"dom 11:30", franja:"Día"},
+  {n:15, ruta:"Puerto Viejo – Gallarta", dif:"Fácil", dist:"10,15 km", dp:148, dn:38, ini:"dom 11:30", fin:"dom 12:30", franja:"Día"},
+  {n:16, ruta:"Gallarta – Galdames", dif:"Fácil", dist:"13,43 km", dp:71, dn:71, ini:"dom 12:30", fin:"dom 13:40", franja:"Día"},
+  {n:17, ruta:"Galdames – Sodupe", dif:"Difícil", dist:"10,62 km", dp:347, dn:406, ini:"dom 13:40", fin:"dom 15:00", franja:"Día"},
+  {n:18, ruta:"Sodupe – Zorroza", dif:"Fácil", dist:"13,09 km", dp:31, dn:77, ini:"dom 15:00", fin:"dom 16:00", franja:"Día"}
+];
+
+const difClass = {"Fácil":"pill-easy", "Difícil":"pill-hard", "Muy Difícil":"pill-vhard"};
+const franjaClass = {
+  "Día":"pill-day", "Noche":"pill-night",
+  "Atardecer":"pill-twilight", "Anochecer":"pill-twilight", "Amanecer":"pill-twilight"
+};
+
+let state = { view: "home", votos: {} };
+
+async function apiGet() {
+  try {
+    const r = await fetch("/api/votos");
+    return r.ok ? await r.json() : {};
+  } catch (e) {
+    console.error(e);
+    return {};
+  }
+}
+
+async function apiSave(nombre, voto) {
+  const r = await fetch("/api/votos", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({nombre, voto})
+  });
+  return r.ok;
+}
+
+async function apiDelete(nombre) {
+  const r = await fetch("/api/votos?nombre=" + encodeURIComponent(nombre), {method: "DELETE"});
+  return r.ok;
+}
+
+async function refresh() {
+  state.votos = await apiGet();
+  render();
+}
+
+function render() {
+  const app = document.getElementById("app");
+  if (state.view === "home") return renderHome(app);
+  if (state.view === "votar") return renderVotar(app);
+  if (state.view === "resultados") return renderResultados(app);
+}
+
+function renderHome(app) {
+  const votantes = Object.keys(state.votos);
+  app.innerHTML = `
+    <h1>Votación etapas WOP Challenge</h1>
+    <p class="subtitle">12 participantes · 18 etapas a repartir · etapa 19 en grupo</p>
+
+    <div class="info-box">
+      <strong>Cómo funciona</strong>
+      <ul>
+        <li>Eliges tus 3 etapas favoritas en orden de prioridad</li>
+        <li>1ª opción = 3 pts · 2ª = 2 pts · 3ª = 1 pt</li>
+        <li>Reparto: 6 personas hacen 2 etapas, 6 hacen 1 etapa</li>
+      </ul>
+    </div>
+
+    <div class="btn-grid">
+      <button class="btn btn-primary" id="btn-votar">🗳️ Votar</button>
+      <button class="btn" id="btn-resultados">📊 Resultados (${votantes.length}/12)</button>
+    </div>
+
+    ${votantes.length > 0 ? `
+      <div style="font-size: 13px; color: #888; text-align: center; margin-top: 12px;">
+        Ya han votado: ${votantes.join(", ")}
+      </div>
+    ` : ""}
+
+    <p style="text-align:center; color:#aaa; font-size:11px; margin-top: 32px;">
+      Horarios estimados (~24h totales). Salida prevista sáb 24 oct 16:00.
+    </p>
+  `;
+  document.getElementById("btn-votar").onclick = () => { state.view = "votar"; render(); };
+  document.getElementById("btn-resultados").onclick = async () => {
+    state.view = "resultados";
+    await refresh();
+  };
+}
+
+function renderVotar(app) {
+  const opts = ETAPAS.map(e =>
+    `<option value="${e.n}">E${e.n} - ${e.ruta} (${e.ini}, ${e.dif}, ${e.franja})</option>`
+  ).join("");
+
+  const detalle = ETAPAS.map(e => `
+    <div class="etapa-row">
+      <strong>${e.n}</strong>
+      <span>${e.ruta} <span style="color:#999;font-size:11px">${e.dist}, +${e.dp}m</span></span>
+      <span>
+        <span class="pill ${difClass[e.dif]}">${e.dif}</span>
+        <span class="pill ${franjaClass[e.franja]}">${e.franja}</span>
+      </span>
+    </div>
+  `).join("");
+
+  app.innerHTML = `
+    <div class="top-bar">
+      <button class="back-btn" id="btn-back">← Volver</button>
+      <h2>Tu voto</h2>
+    </div>
+
+    <div class="card">
+      <div class="etapa-detail">
+        <strong style="display:block; margin-bottom:8px;">Resumen de etapas</strong>
+        ${detalle}
+      </div>
+
+      <div class="field">
+        <label>Tu nombre</label>
+        <input id="nombre" type="text" placeholder="Ej: Edorta">
+      </div>
+
+      <div class="field">
+        <label>1ª opción (la que más quieres) · 3 pts</label>
+        <select id="prio1"><option value="">Elige una etapa...</option>${opts}</select>
+      </div>
+
+      <div class="field">
+        <label>2ª opción · 2 pts</label>
+        <select id="prio2"><option value="">Elige una etapa...</option>${opts}</select>
+      </div>
+
+      <div class="field">
+        <label>3ª opción · 1 pt</label>
+        <select id="prio3"><option value="">Elige una etapa...</option>${opts}</select>
+      </div>
+
+      <div class="field">
+        <label>¿Estás dispuesto/a a hacer 2 etapas?</label>
+        <select id="doble">
+          <option value="">Elige...</option>
+          <option value="si">Sí, sin problema</option>
+          <option value="cortas">Solo si son cortas/fáciles</option>
+          <option value="no">Prefiero hacer solo 1</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>¿Etapa nocturna?</label>
+        <select id="noche">
+          <option value="">Elige...</option>
+          <option value="da-igual">Me da igual</option>
+          <option value="prefiero-dia">Prefiero diurna pero acepto noche</option>
+          <option value="solo-dia">Solo diurna si es posible</option>
+        </select>
+      </div>
+
+      <div id="error" class="error"></div>
+
+      <button class="btn btn-primary" id="btn-enviar">Enviar voto</button>
+    </div>
+  `;
+
+  document.getElementById("btn-back").onclick = () => { state.view = "home"; render(); };
+  document.getElementById("btn-enviar").onclick = async () => {
+    const nombre = document.getElementById("nombre").value.trim();
+    const p1 = document.getElementById("prio1").value;
+    const p2 = document.getElementById("prio2").value;
+    const p3 = document.getElementById("prio3").value;
+    const doble = document.getElementById("doble").value;
+    const noche = document.getElementById("noche").value;
+    const err = document.getElementById("error");
+
+    function showErr(msg) { err.textContent = msg; err.style.display = "block"; }
+
+    if (!nombre) return showErr("Pon tu nombre");
+    if (!p1 || !p2 || !p3) return showErr("Elige las 3 prioridades");
+    if (p1 === p2 || p1 === p3 || p2 === p3) return showErr("Las 3 etapas deben ser distintas");
+    if (!doble || !noche) return showErr("Responde a las dos últimas preguntas");
+
+    const btn = document.getElementById("btn-enviar");
+    btn.disabled = true;
+    btn.textContent = "Enviando...";
+
+    const ok = await apiSave(nombre, {p1:+p1, p2:+p2, p3:+p3, doble, noche, ts: Date.now()});
+    if (!ok) {
+      showErr("Error al guardar. Intenta de nuevo.");
+      btn.disabled = false;
+      btn.textContent = "Enviar voto";
+      return;
+    }
+
+    state.view = "resultados";
+    await refresh();
+  };
+}
+
+function renderResultados(app) {
+  const votantes = Object.entries(state.votos);
+  const puntos = {};
+  ETAPAS.forEach(e => puntos[e.n] = {pts: 0, p1: 0, p2: 0, p3: 0});
+  votantes.forEach(([, v]) => {
+    puntos[v.p1].pts += 3; puntos[v.p1].p1++;
+    puntos[v.p2].pts += 2; puntos[v.p2].p2++;
+    puntos[v.p3].pts += 1; puntos[v.p3].p3++;
+  });
+  const ranking = ETAPAS.map(e => ({...e, ...puntos[e.n]})).sort((a, b) => b.pts - a.pts);
+  const maxPts = Math.max(...ranking.map(r => r.pts), 1);
+
+  app.innerHTML = `
+    <div class="top-bar">
+      <button class="back-btn" id="btn-back">← Volver</button>
+      <h2>Resultados (${votantes.length}/12)</h2>
+      <button class="back-btn" id="btn-refresh" style="margin-left:auto;">🔄</button>
+    </div>
+
+    ${votantes.length === 0 ? `
+      <div class="card"><div class="empty">Aún no ha votado nadie.</div></div>
+    ` : `
+      <div class="card">
+        <div style="font-size:13px; color:#666; margin-bottom:6px;">Han votado:</div>
+        <div>
+          ${votantes.map(([n]) => `
+            <span class="voter-pill">${n}<button class="voter-del" data-del="${n}" aria-label="Borrar ${n}">×</button></span>
+          `).join("")}
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:13px; color:#666; margin-bottom:10px;">Ranking por puntos:</div>
+        ${ranking.map((r, i) => `
+          <div class="ranking-row">
+            <span style="color:#999;">#${i+1}</span>
+            <strong>E${r.n}</strong>
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.ruta}</span>
+            <span class="pill pill-dif ${difClass[r.dif]}">${r.dif}</span>
+            <span class="pill ${franjaClass[r.franja]}">${r.franja}</span>
+            <div class="bar-wrap" style="display:flex; align-items:center; gap:6px;">
+              <div class="bar-bg"><div class="bar-fg" style="width:${(r.pts/maxPts)*100}%"></div></div>
+              <strong style="min-width:18px; text-align:right;">${r.pts}</strong>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `}
+  `;
+
+  document.getElementById("btn-back").onclick = () => { state.view = "home"; render(); };
+  document.getElementById("btn-refresh").onclick = refresh;
+
+  document.querySelectorAll("[data-del]").forEach(btn => {
+    btn.onclick = async () => {
+      const n = btn.getAttribute("data-del");
+      if (confirm(`¿Borrar voto de ${n}?`)) {
+        await apiDelete(n);
+        await refresh();
+      }
+    };
+  });
+}
+
+// Auto-refresh resultados cada 10 segundos
+setInterval(() => {
+  if (state.view === "resultados") refresh();
+}, 10000);
+
+refresh();
+</script>
+</body>
+</html>
